@@ -1,0 +1,275 @@
+# Prowlarr - Sonarr - Radarr - Lidarr - Readarr
+# version: "3"
+
+services:
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Kolkata
+      - WEBUI_PORT=8080
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 4G
+        reservations:
+          cpus: '2.0'
+          memory: 1G
+    shm_size: 256m
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - /mnt/drive/external/qbittorrent:/config
+      - /mnt/drive/external/media:/data
+      - /mnt/drive/external/qbittorrent/downloads:/downloads
+    network_mode: host
+    healthcheck:
+      test: ping -c 1 www.google.com || exit 1
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    # network_mode: "service:warp"
+
+  # WARP VPN container (Cloudflare Warp client)
+  warp:
+    image: caomingjun/warp
+    container_name: warp
+    device_cgroup_rules:
+      - 'c 10:200 rwm'
+    # Keep only the SOCKS port published from warp; other UI ports will be exposed
+    # via a bridge-network proxy so host connections don't get reset by the warp
+    # network namespace. This avoids publishing ports directly from the VPN
+    # container which can interfere with incoming host connections.
+    ports:
+      - "1080:1080"
+    environment:
+      - WARP_SLEEP=2
+    cap_add:
+      - MKNOD
+      - AUDIT_WRITE
+      - NET_ADMIN
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=0
+      - net.ipv4.conf.all.src_valid_mark=1
+    volumes:
+      - /mnt/drive/external/warp:/var/lib/cloudflare-warp
+    healthcheck:
+      test: warp-cli status | grep Connected || exit 1
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - arrs
+
+  nginx-proxy:
+    image: nginx:1.26-alpine
+    container_name: nginx-proxy
+    volumes:
+      - /mnt/drive/external/config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8989:8989"
+      - "7878:7878"
+      - "8686:8686"
+      - "8787:8787"
+      - "8082:8081"
+      - "5055:5055"
+      - "8096:8096"
+      - "8191:8191"
+      - "9697:9697"
+      - "6767:6767"
+    networks:
+      - arrs
+    healthcheck:
+      test: ping -c 1 www.google.com || exit 1
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  prowlarr:
+    image: ghcr.io/hotio/prowlarr:latest
+    container_name: prowlarr
+    platform: linux/arm64
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - DOTNET_SYSTEM_NET_DISABLEIPV6=1
+      - CURL_IPRESOLVE=4
+      - TZ=Asia/Kolkata
+    volumes:
+      - /mnt/drive/external/prowlarr/config:/config
+      - /mnt/drive/external/prowlarr/backup:/data/Backup
+    network_mode: "service:warp"
+    healthcheck:
+      test: ping -c 1 www.google.com || exit 1
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    environment:
+      - LOG_LEVEL=info
+      - PORT=8191
+    network_mode: "service:warp"
+    healthcheck:
+      test: ping -c 1 www.google.com || exit 1
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:develop
+    container_name: sonarr
+    platform: linux/arm64
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Kolkata
+    volumes:
+      - /mnt/drive/external/sonarr/config:/config
+      - /mnt/drive/external/sonarr/backup:/data/Backup
+      - /mnt/drive/external/media/tvshows:/data/tvshows
+      - /mnt/drive/external/media/anime:/data/anime
+      - /mnt/drive/external/qbittorrent/downloads:/downloads
+    network_mode: "service:warp"
+    healthcheck:
+      test: ping -c 1 www.google.com || exit 1
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    platform: linux/arm64
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Kolkata
+    volumes:
+      - /mnt/drive/external/radarr/config:/config
+      - /mnt/drive/external/media/movies:/data/movies
+      - /mnt/drive/external/radarr/backup:/data/Backup
+      - /mnt/drive/external/qbittorrent/downloads:/downloads
+    network_mode: "service:warp"
+    healthcheck:
+      test: ping -c 1 www.google.com || exit 1
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  lidarr:
+    image: lscr.io/linuxserver/lidarr:latest
+    container_name: lidarr
+    platform: linux/arm64
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Kolkata
+    volumes:
+      - /mnt/drive/external/lidarr/config:/config
+      - /mnt/drive/external/media/music:/data/musicfolder
+      - /mnt/drive/external/lidarr/backup:/data/Backup
+      - /mnt/drive/external/qbittorrent/downloads:/downloads
+    network_mode: "service:warp"
+    healthcheck:
+      test: ping -c 1 www.google.com || exit 1
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:latest
+    container_name: bazarr
+    platform: linux/arm64
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Kolkata
+    volumes:
+      - /mnt/drive/external/bazarr/config:/config
+      - /mnt/drive/external/media/movies:/data/movies
+      - /mnt/drive/external/media/tvshows:/data/tvshows
+      - /mnt/drive/external/media/anime:/data/anime
+    network_mode: "service:warp"
+    healthcheck:
+      test: ping -c 1 www.google.com || exit 1
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  jellyfin:
+    image: lscr.io/linuxserver/jellyfin:latest
+    container_name: jellyfin
+    platform: linux/arm64
+    devices:
+      - /dev/video10:/dev/video10
+      - /dev/video11:/dev/video11
+      - /dev/video12:/dev/video12
+      - /dev/video13:/dev/video13
+      - /dev/video14:/dev/video14
+      - /dev/video15:/dev/video15
+      - /dev/video16:/dev/video16
+      - /dev/video18:/dev/video18
+      - /dev/video19:/dev/video19
+      - /dev/video20:/dev/video20
+      - /dev/video21:/dev/video21
+      - /dev/video22:/dev/video22
+      - /dev/video23:/dev/video23
+      - /dev/video31:/dev/video31
+    group_add:
+      - "video"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Kolkata
+    volumes:
+      - /mnt/drive/external/jellyfin/config:/config
+      - /mnt/drive/external/media/tvshows:/media/tvshows:ro
+      - /mnt/drive/external/media/movies:/media/movies:ro
+      - /mnt/drive/external/media/music:/media/music:ro
+      - /mnt/drive/external/media/anime:/media/anime:ro
+    network_mode: "service:warp"
+    healthcheck:
+      test: ping -c 1 www.google.com || exit 1
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  jellyseerr:
+    image: ghcr.io/fallenbagel/jellyseerr:latest
+    container_name: jellyseerr
+    platform: linux/arm64
+    environment:
+      - LOG_LEVEL=info
+      - TZ=Asia/Kolkata
+      - PORT=5055
+    volumes:
+      - /mnt/drive/external/jellyseerr/config:/app/config
+    network_mode: "service:warp"
+    healthcheck:
+      test: ping -c 1 www.google.com || exit 1
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    depends_on:
+      - warp
+    restart: unless-stopped
+
+networks:
+  arrs:

@@ -1,0 +1,132 @@
+# The Arrs Stack - youtube.com/@KLTechVideos
+# Prowlarr - Sonarr - Radarr - Lidarr - Readarr
+# version: "2.1"
+services:
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    environment:
+      - PUID=501
+      - PGID=20
+      - TZ=Asia/Kolkata
+      - WEBUI_PORT=8080
+    ports:
+      - "8080:8080"
+      - "6881:6881"
+    volumes:
+      - ./data/qbittorrent:/config
+      - /Users/ashutoshkrishnajha/Downloads/arr-downloads:/downloads
+    restart: unless-stopped
+    networks:
+      - arrs
+  prowlarr:
+    # image: lscr.io/linuxserver/prowlarr:nightly # Change to "latest" for stable
+    image: ghcr.io/hotio/prowlarr:latest
+    container_name: prowlarr
+    platform: linux/arm64
+    environment:
+      - PUID=501
+      - PGID=20
+      - DOTNET_SYSTEM_NET_DISABLEIPV6=1
+      - CURL_IPRESOLVE=4
+      - HTTP_PROXY=http://privoxy:8118
+      - HTTPS_PROXY=http://privoxy:8118
+      - TZ=Asia/Kolkata
+    # sysctls:
+    #   - net.ipv6.conf.all.disable_ipv6=1
+    volumes:
+      - ./data/prowlarr/config:/config
+      - ./data/prowlarr/backup:/data/Backup
+      - /Users/ashutoshkrishnajha/Downloads/arr-downloads:/data/downloads
+    ports:
+      - 9697:9696
+    restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+  privoxy:
+    image: linuxserver/privoxy:latest
+    container_name: privoxy
+    ports:
+      - "8118:8118"
+    restart: unless-stopped
+    networks:
+      - arrs
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:develop # Change to "latest" for stable
+    container_name: sonarr
+    platform: linux/arm64
+    environment:
+      - PUID=501
+      - PGID=20
+      - TZ=Asia/Kolkata
+    volumes:
+      - ./data/sonarr/config:/config
+      - ./data/sonarr/backup:/data/Backup
+      - ./data/sonarr/tvshows:/data/tvshows
+      - /Users/ashutoshkrishnajha/Downloads/arr-downloads:/data/downloads
+    ports:
+      - 8989:8989
+    restart: unless-stopped
+    networks:
+      - arrs
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    platform: linux/arm64
+    environment:
+      - PUID=501
+      - PGID=20
+      - TZ=Asia/Kolkata
+    volumes:
+      - ./data/radarr/config:/config
+      - ./data/radarr/movies:/data/movies
+      - /Users/ashutoshkrishnajha/Downloads/arr-downloads:/data/downloads
+      - ./data/radarr/backup:/data/Backup
+    ports:
+      - 7878:7878
+    restart: unless-stopped
+    networks:
+      - arrs
+  lidarr:
+    image: lscr.io/linuxserver/lidarr:latest
+    container_name: lidarr
+    platform: linux/arm64
+    environment:
+      - PUID=501
+      - PGID=20
+      - TZ=Asia/Kolkata
+    volumes:
+      - ./data/lidarr/config:/config
+      - ./data/lidarr/music:/data/musicfolder
+      - /Users/ashutoshkrishnajha/Downloads/arr-downloads:/data/downloads
+      - ./data/lidarr/backup:/data/Backup
+    ports:
+      - 8686:8686
+    restart: unless-stopped
+    networks:
+      - arrs
+  jellyfin:
+    image: lscr.io/linuxserver/jellyfin:latest
+    container_name: jellyfin
+    platform: linux/arm64
+    environment:
+      - PUID=501
+      - PGID=20
+      - TZ=Asia/Kolkata
+    volumes:
+      - ./data/jellyfin/config:/config
+      - /Users/ashutoshkrishnajha/Downloads/arr-downloads:/media
+    ports:
+      - 8096:8096
+    restart: unless-stopped
+    networks:
+      - arrs
+  # readarr service removed (Readarr is no longer used).
+networks:
+  arrs:
+    driver: bridge
+#     ipam:
+#       config:
+#         - subnet: 173.25.0.0/16
+#           gateway: 173.25.0.1

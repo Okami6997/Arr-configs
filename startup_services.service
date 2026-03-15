@@ -1,0 +1,13 @@
+[Unit]
+Description=Startup services for Tailscale, Docker, and Docker Compose
+After=network.target docker.service
+
+[Service]
+Type=simple
+ExecStart=/bin/bash /home/pi/startup_services.sh
+User=pi
+WorkingDirectory=/home/pi
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
