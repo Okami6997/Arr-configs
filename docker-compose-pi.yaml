@@ -85,6 +85,9 @@ services:
       - "6767:6767"
     networks:
       - arrs
+    depends_on:
+      warp:
+        condition: service_healthy
     healthcheck:
       test: ping -c 1 www.google.com || exit 1
       interval: 20s
@@ -106,6 +109,9 @@ services:
       - /mnt/drive/external/prowlarr/config:/config
       - /mnt/drive/external/prowlarr/backup:/data/Backup
     network_mode: "service:warp"
+    depends_on:
+      warp:
+        condition: service_healthy
     healthcheck:
       test: ping -c 1 www.google.com || exit 1
       interval: 20s
@@ -120,6 +126,9 @@ services:
       - LOG_LEVEL=info
       - PORT=8191
     network_mode: "service:warp"
+    depends_on:
+      warp:
+        condition: service_healthy
     healthcheck:
       test: ping -c 1 www.google.com || exit 1
       interval: 20s
@@ -142,6 +151,9 @@ services:
       - /mnt/drive/external/media/anime:/data/anime
       - /mnt/drive/external/qbittorrent/downloads:/downloads
     network_mode: "service:warp"
+    depends_on:
+      warp:
+        condition: service_healthy
     healthcheck:
       test: ping -c 1 www.google.com || exit 1
       interval: 20s
@@ -163,6 +175,9 @@ services:
       - /mnt/drive/external/radarr/backup:/data/Backup
       - /mnt/drive/external/qbittorrent/downloads:/downloads
     network_mode: "service:warp"
+    depends_on:
+      warp:
+        condition: service_healthy
     healthcheck:
       test: ping -c 1 www.google.com || exit 1
       interval: 20s
@@ -184,6 +199,9 @@ services:
       - /mnt/drive/external/lidarr/backup:/data/Backup
       - /mnt/drive/external/qbittorrent/downloads:/downloads
     network_mode: "service:warp"
+    depends_on:
+      warp:
+        condition: service_healthy
     healthcheck:
       test: ping -c 1 www.google.com || exit 1
       interval: 20s
@@ -205,6 +223,9 @@ services:
       - /mnt/drive/external/media/tvshows:/data/tvshows
       - /mnt/drive/external/media/anime:/data/anime
     network_mode: "service:warp"
+    depends_on:
+      warp:
+        condition: service_healthy
     healthcheck:
       test: ping -c 1 www.google.com || exit 1
       interval: 20s
@@ -244,6 +265,9 @@ services:
       - /mnt/drive/external/media/music:/media/music:ro
       - /mnt/drive/external/media/anime:/media/anime:ro
     network_mode: "service:warp"
+    depends_on:
+      warp:
+        condition: service_healthy
     healthcheck:
       test: ping -c 1 www.google.com || exit 1
       interval: 20s
@@ -268,7 +292,8 @@ services:
       timeout: 10s
       retries: 5
     depends_on:
-      - warp
+      warp:
+        condition: service_healthy
     restart: unless-stopped
 
 networks:
