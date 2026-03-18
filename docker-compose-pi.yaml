@@ -83,6 +83,7 @@ services:
       - "8191:8191"
       - "9697:9697"
       - "6767:6767"
+      - "4533:4533"
     networks:
       - arrs
     depends_on:
@@ -264,6 +265,29 @@ services:
       - /mnt/drive/external/media/movies:/media/movies:ro
       - /mnt/drive/external/media/music:/media/music:ro
       - /mnt/drive/external/media/anime:/media/anime:ro
+    network_mode: "service:warp"
+    depends_on:
+      warp:
+        condition: service_healthy
+    healthcheck:
+      test: ping -c 1 www.google.com || exit 1
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  navidrome:
+    image: deluan/navidrome:latest
+    container_name: navidrome
+    platform: linux/arm64
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Kolkata
+      - ND_MUSICFOLDER=/data/musicfolder
+    volumes:
+      - /mnt/drive/external/navidrome/config:/data
+      - /mnt/drive/external/media/music:/data/musicfolder
     network_mode: "service:warp"
     depends_on:
       warp:
