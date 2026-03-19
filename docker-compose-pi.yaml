@@ -2,6 +2,18 @@
 # version: "3"
 
 services:
+  deunhealth:
+    image: qmcgaw/deunhealth
+    container_name: deunhealth
+    network_mode: "none"
+    environment:
+      - LOG_LEVEL=info
+      - HEALTH_SERVER_ADDRESS=127.0.0.1:9999
+      - TZ=Asia/Kolkata
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent:latest
     environment:
@@ -26,6 +38,8 @@ services:
       - /mnt/drive/external/qbittorrent:/config
       - /mnt/drive/external/media:/data
       - /mnt/drive/external/qbittorrent/downloads:/downloads
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
     network_mode: host
     healthcheck:
       test: ping -c 1 www.google.com || exit 1
@@ -56,6 +70,8 @@ services:
     sysctls:
       - net.ipv6.conf.all.disable_ipv6=0
       - net.ipv4.conf.all.src_valid_mark=1
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
     volumes:
       - /mnt/drive/external/warp:/var/lib/cloudflare-warp
     healthcheck:
@@ -89,6 +105,8 @@ services:
     depends_on:
       warp:
         condition: service_healthy
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
     healthcheck:
       test: ping -c 1 www.google.com || exit 1
       interval: 20s
@@ -109,6 +127,8 @@ services:
     volumes:
       - /mnt/drive/external/prowlarr/config:/config
       - /mnt/drive/external/prowlarr/backup:/data/Backup
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
     network_mode: "service:warp"
     depends_on:
       warp:
@@ -123,6 +143,8 @@ services:
   flaresolverr:
     image: ghcr.io/flaresolverr/flaresolverr:latest
     container_name: flaresolverr
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
     environment:
       - LOG_LEVEL=info
       - PORT=8191
@@ -151,6 +173,8 @@ services:
       - /mnt/drive/external/media/tvshows:/data/tvshows
       - /mnt/drive/external/media/anime:/data/anime
       - /mnt/drive/external/qbittorrent/downloads:/downloads
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
     network_mode: "service:warp"
     depends_on:
       warp:
@@ -175,6 +199,8 @@ services:
       - /mnt/drive/external/media/movies:/data/movies
       - /mnt/drive/external/radarr/backup:/data/Backup
       - /mnt/drive/external/qbittorrent/downloads:/downloads
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
     network_mode: "service:warp"
     depends_on:
       warp:
@@ -199,6 +225,8 @@ services:
       - /mnt/drive/external/media/music:/data/musicfolder
       - /mnt/drive/external/lidarr/backup:/data/Backup
       - /mnt/drive/external/qbittorrent/downloads:/downloads
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
     network_mode: "service:warp"
     depends_on:
       warp:
@@ -223,6 +251,8 @@ services:
       - /mnt/drive/external/media/movies:/data/movies
       - /mnt/drive/external/media/tvshows:/data/tvshows
       - /mnt/drive/external/media/anime:/data/anime
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
     network_mode: "service:warp"
     depends_on:
       warp:
@@ -265,6 +295,8 @@ services:
       - /mnt/drive/external/media/movies:/media/movies:ro
       - /mnt/drive/external/media/music:/media/music:ro
       - /mnt/drive/external/media/anime:/media/anime:ro
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
     network_mode: "service:warp"
     depends_on:
       warp:
@@ -288,6 +320,8 @@ services:
     volumes:
       - /mnt/drive/external/navidrome/config:/data
       - /mnt/drive/external/media/music:/data/musicfolder
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
     network_mode: "service:warp"
     depends_on:
       warp:
@@ -309,6 +343,8 @@ services:
       - PORT=5055
     volumes:
       - /mnt/drive/external/jellyseerr/config:/app/config
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
     network_mode: "service:warp"
     healthcheck:
       test: ping -c 1 www.google.com || exit 1
