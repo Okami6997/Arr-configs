@@ -1,112 +1,363 @@
-# The Arrs Stack - youtube.com/@KLTechVideos
 # Prowlarr - Sonarr - Radarr - Lidarr - Readarr
-# version: "2.1"
+# version: "3"
+
 services:
+  deunhealth:
+    image: qmcgaw/deunhealth
+    container_name: deunhealth
+    network_mode: "none"
+    environment:
+      - LOG_LEVEL=info
+      - HEALTH_SERVER_ADDRESS=127.0.0.1:9999
+      - TZ=Asia/Kolkata
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent:latest
     environment:
-      - PUID=501
-      - PGID=20
+      - PUID=1000
+      - PGID=1000
       - TZ=Asia/Kolkata
       - WEBUI_PORT=8080
-    ports:
-      - "8080:8080"
-      - "6881:6881"
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 4G
+        reservations:
+          cpus: '2.0'
+          memory: 1G
+    shm_size: 256m
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     volumes:
-      - ./data/qbittorrent:/config
-      - /Users/ashutoshkrishnajha/Downloads/arr-downloads:/downloads
+      - /mnt/drive/external/qbittorrent:/config
+      - /mnt/drive/external/media:/data
+      - /mnt/drive/external/qbittorrent/downloads:/downloads
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
+    network_mode: host
+    healthcheck:
+      test: ping -c 1 www.google.com || exit 1
+      interval: 20s
+      timeout: 10s
+      retries: 5
     restart: unless-stopped
+    # network_mode: "service:warp"
+
+  # WARP VPN container (Cloudflare Warp client)
+  warp:
+    image: caomingjun/warp
+    container_name: warp
+    device_cgroup_rules:
+      - 'c 10:200 rwm'
+    # Keep only the SOCKS port published from warp; other UI ports will be exposed
+    # via a bridge-network proxy so host connections don't get reset by the warp
+    # network namespace. This avoids publishing ports directly from the VPN
+    # container which can interfere with incoming host connections.
+    ports:
+      - "1080:1080"
+    environment:
+      - WARP_SLEEP=2
+    cap_add:
+      - MKNOD
+      - AUDIT_WRITE
+      - NET_ADMIN
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=0
+      - net.ipv4.conf.all.src_valid_mark=1
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
+    volumes:
+      - /mnt/drive/external/warp:/var/lib/cloudflare-warp
+    healthcheck:
+      test: warp-cli status | grep Connected || exit 1
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - arrs
+
+  nginx-proxy:
+    image: nginx:1.26-alpine
+    container_name: nginx-proxy
+    volumes:
+      - /mnt/drive/external/config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8989:8989"
+      - "7878:7878"
+      - "8686:8686"
+      - "8787:8787"
+      - "8082:8081"
+      - "5055:5055"
+      - "8096:8096"
+      - "8191:8191"
+      - "9697:9697"
+      - "6767:6767"
+      - "4533:4533"
+    networks:
+      - arrs
+    depends_on:
+      warp:
+        condition: service_healthy
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
+    healthcheck:
+      test: ping -c 1 www.google.com || exit 1
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
   prowlarr:
-    image: lscr.io/linuxserver/prowlarr:nightly # Change to "latest" for stable
+    image: ghcr.io/hotio/prowlarr:latest
     container_name: prowlarr
-    platform: linux/amd64
+    platform: linux/arm64
     environment:
-      - PUID=501
-      - PGID=20
+      - PUID=1000
+      - PGID=1000
+      - DOTNET_SYSTEM_NET_DISABLEIPV6=1
+      - CURL_IPRESOLVE=4
       - TZ=Asia/Kolkata
     volumes:
-      - ./data/prowlarr/config:/config
-      - ./data/prowlarr/backup:/data/Backup
-      - /Users/ashutoshkrishnajha/Downloads/arr-downloads:/data/downloads
-    ports:
-      - 9697:9696
+      - /mnt/drive/external/prowlarr/config:/config
+      - /mnt/drive/external/prowlarr/backup:/data/Backup
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
+    network_mode: "service:warp"
+    depends_on:
+      warp:
+        condition: service_healthy
+    healthcheck:
+      test: ping -c 1 www.google.com || exit 1
+      interval: 20s
+      timeout: 10s
+      retries: 5
     restart: unless-stopped
-    # networks:
-    #   - arrs
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
+    environment:
+      - LOG_LEVEL=info
+      - PORT=8191
+    network_mode: "service:warp"
+    depends_on:
+      warp:
+        condition: service_healthy
+    healthcheck:
+      test: ping -c 1 www.google.com || exit 1
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
   sonarr:
-    image: lscr.io/linuxserver/sonarr:develop # Change to "latest" for stable
+    image: lscr.io/linuxserver/sonarr:develop
     container_name: sonarr
-    platform: linux/amd64
+    platform: linux/arm64
     environment:
-      - PUID=501
-      - PGID=20
+      - PUID=1000
+      - PGID=1000
       - TZ=Asia/Kolkata
     volumes:
-      - ./data/sonarr/config:/config
-      - ./data/sonarr/backup:/data/Backup
-      - ./data/sonarr/tvshows:/data/tvshows
-      - /Users/ashutoshkrishnajha/Downloads/arr-downloads:/data/downloads
-    ports:
-      - 8989:8989
+      - /mnt/drive/external/sonarr/config:/config
+      - /mnt/drive/external/sonarr/backup:/data/Backup
+      - /mnt/drive/external/media/tvshows:/data/tvshows
+      - /mnt/drive/external/media/anime:/data/anime
+      - /mnt/drive/external/qbittorrent/downloads:/downloads
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
+    network_mode: "service:warp"
+    depends_on:
+      warp:
+        condition: service_healthy
+    healthcheck:
+      test: ping -c 1 www.google.com || exit 1
+      interval: 20s
+      timeout: 10s
+      retries: 5
     restart: unless-stopped
-    # networks:
-    #   - arrs
+
   radarr:
     image: lscr.io/linuxserver/radarr:latest
     container_name: radarr
-    platform: linux/amd64
+    platform: linux/arm64
     environment:
-      - PUID=501
-      - PGID=20
+      - PUID=1000
+      - PGID=1000
       - TZ=Asia/Kolkata
     volumes:
-      - ./data/radarr/config:/config
-      - ./data/radarr/movies:/data/movies
-      - /Users/ashutoshkrishnajha/Downloads/arr-downloads:/data/downloads
-      - ./data/radarr/backup:/data/Backup
-    ports:
-      - 7878:7878
+      - /mnt/drive/external/radarr/config:/config
+      - /mnt/drive/external/media/movies:/data/movies
+      - /mnt/drive/external/radarr/backup:/data/Backup
+      - /mnt/drive/external/qbittorrent/downloads:/downloads
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
+    network_mode: "service:warp"
+    depends_on:
+      warp:
+        condition: service_healthy
+    healthcheck:
+      test: ping -c 1 www.google.com || exit 1
+      interval: 20s
+      timeout: 10s
+      retries: 5
     restart: unless-stopped
-    # networks:
-    #   - arrs
+
   lidarr:
     image: lscr.io/linuxserver/lidarr:latest
     container_name: lidarr
-    platform: linux/amd64
+    platform: linux/arm64
     environment:
-      - PUID=501
-      - PGID=20
+      - PUID=1000
+      - PGID=1000
       - TZ=Asia/Kolkata
     volumes:
-      - ./data/lidarr/config:/config
-      - ./data/lidarr/music:/data/musicfolder
-      - /Users/ashutoshkrishnajha/Downloads/arr-downloads:/data/downloads
-      - ./data/lidarr/backup:/data/Backup
-    ports:
-      - 8686:8686
+      - /mnt/drive/external/lidarr/config:/config
+      - /mnt/drive/external/media/music:/data/musicfolder
+      - /mnt/drive/external/lidarr/backup:/data/Backup
+      - /mnt/drive/external/qbittorrent/downloads:/downloads
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
+    network_mode: "service:warp"
+    depends_on:
+      warp:
+        condition: service_healthy
+    healthcheck:
+      test: ping -c 1 www.google.com || exit 1
+      interval: 20s
+      timeout: 10s
+      retries: 5
     restart: unless-stopped
-    # networks:
-    #   - arrs
-  # readarr service removed (Readarr is no longer used).
-  # Re-add this block if you decide to restore Readarr in the future.
+
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:latest
+    container_name: bazarr
+    platform: linux/arm64
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Kolkata
+    volumes:
+      - /mnt/drive/external/bazarr/config:/config
+      - /mnt/drive/external/media/movies:/data/movies
+      - /mnt/drive/external/media/tvshows:/data/tvshows
+      - /mnt/drive/external/media/anime:/data/anime
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
+    network_mode: "service:warp"
+    depends_on:
+      warp:
+        condition: service_healthy
+    healthcheck:
+      test: ping -c 1 www.google.com || exit 1
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
   jellyfin:
     image: lscr.io/linuxserver/jellyfin:latest
     container_name: jellyfin
-    platform: linux/amd64
+    platform: linux/arm64
+    devices:
+      - /dev/video10:/dev/video10
+      - /dev/video11:/dev/video11
+      - /dev/video12:/dev/video12
+      - /dev/video13:/dev/video13
+      - /dev/video14:/dev/video14
+      - /dev/video15:/dev/video15
+      - /dev/video16:/dev/video16
+      - /dev/video18:/dev/video18
+      - /dev/video19:/dev/video19
+      - /dev/video20:/dev/video20
+      - /dev/video21:/dev/video21
+      - /dev/video22:/dev/video22
+      - /dev/video23:/dev/video23
+      - /dev/video31:/dev/video31
+      - /dev/dri/renderD128:/dev/dri/renderD128
+    group_add:
+      - "video"
+      - "render"
     environment:
-      - PUID=501
-      - PGID=20
+      - PUID=1000
+      - PGID=1000
       - TZ=Asia/Kolkata
     volumes:
-      - ./data/jellyfin/config:/config
-      - /Users/ashutoshkrishnajha/Downloads/arr-downloads:/media
-    ports:
-      - 8096:8096
+      - /mnt/drive/external/jellyfin/config:/config
+      - /mnt/drive/external/media/tvshows:/media/tvshows:ro
+      - /mnt/drive/external/media/movies:/media/movies:ro
+      - /mnt/drive/external/media/music:/media/music:ro
+      - /mnt/drive/external/media/anime:/media/anime:ro
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
+    network_mode: "service:warp"
+    depends_on:
+      warp:
+        condition: service_healthy
+    healthcheck:
+      test: curl -f http://localhost:8096/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     restart: unless-stopped
-# networks:
-#   arrs:
-#     driver: bridge
-#     ipam:
-#       config:
-#         - subnet: 173.25.0.0/16
-#           gateway: 173.25.0.1
+
+  navidrome:
+    image: deluan/navidrome:latest
+    container_name: navidrome
+    platform: linux/arm64
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Kolkata
+      - ND_MUSICFOLDER=/data/musicfolder
+    volumes:
+      - /mnt/drive/external/navidrome/config:/data
+      - /mnt/drive/external/media/music:/data/musicfolder
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
+    network_mode: "service:warp"
+    depends_on:
+      warp:
+        condition: service_healthy
+    healthcheck:
+      test: ping -c 1 www.google.com || exit 1
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  jellyseerr:
+    image: ghcr.io/fallenbagel/jellyseerr:latest
+    container_name: jellyseerr
+    platform: linux/arm64
+    environment:
+      - LOG_LEVEL=info
+      - TZ=Asia/Kolkata
+      - PORT=5055
+    volumes:
+      - /mnt/drive/external/jellyseerr/config:/app/config
+    labels:
+      deunhealth.restart.on.unhealthy: "true"
+    network_mode: "service:warp"
+    healthcheck:
+      test: ping -c 1 www.google.com || exit 1
+      interval: 20s
+      timeout: 10s
+      retries: 5
+    depends_on:
+      warp:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  arrs:
