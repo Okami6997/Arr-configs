@@ -318,20 +318,16 @@ services:
       retries: 5
     restart: unless-stopped
 
-  spotiflac:
-    image: ghcr.io/iassis/spotiflac:latest
-    container_name: spotiflac
-    platform: linux/amd64
+  musicsearch:
+    image: ashutoshkj100/musicsearch:latest
+    container_name: musicsearch
+    platform: linux/arm64
     environment:
-      - PUID=1000
-      - PGID=1000
       - TZ=Asia/Kolkata
+      - SONGSFETCH_OUTPUT_DIR=/downloads
     volumes:
-      - /mnt/drive/external/spotiflac/config:/config
+      - /mnt/drive/external/musicsearch/config:/home/songsfetch/.songsfetch
       - /mnt/drive/external/media/music:/downloads
-    shm_size: "1gb"
-    security_opt:
-      - seccomp:unconfined
     labels:
       deunhealth.restart.on.unhealthy: "true"
     network_mode: "service:warp"
