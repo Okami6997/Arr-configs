@@ -100,7 +100,7 @@ services:
       - "9697:9697"
       - "6767:6767"
       - "4533:4533"
-      - "3001:3001"
+      - "3000:3000"
     networks:
       - arrs
     depends_on:
@@ -325,8 +325,9 @@ services:
     environment:
       - TZ=Asia/Kolkata
       - SONGSFETCH_OUTPUT_DIR=/downloads
+      - SONGSFETCH_DATA_DIR=/data
     volumes:
-      - /mnt/drive/external/musicsearch/config:/home/songsfetch/.songsfetch
+      - /mnt/drive/external/musicsearch/config:/data
       - /mnt/drive/external/media/music:/downloads
     labels:
       deunhealth.restart.on.unhealthy: "true"
@@ -335,7 +336,7 @@ services:
       warp:
         condition: service_healthy
     healthcheck:
-      test: ping -c 1 www.google.com || exit 1
+      test: python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:3000/')" || exit 1
       interval: 20s
       timeout: 10s
       retries: 5
