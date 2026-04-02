@@ -100,7 +100,6 @@ services:
       - "9697:9697"
       - "6767:6767"
       - "4533:4533"
-      - "3000:3000"
     networks:
       - arrs
     depends_on:
@@ -322,6 +321,10 @@ services:
     image: ashutoshkj100/musicsearch:latest
     container_name: musicsearch
     platform: linux/arm64
+    user: "1000:1000"
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     environment:
       - TZ=Asia/Kolkata
       - SONGSFETCH_OUTPUT_DIR=/downloads
@@ -331,10 +334,7 @@ services:
       - /mnt/drive/external/media/music:/downloads
     labels:
       deunhealth.restart.on.unhealthy: "true"
-    network_mode: "service:warp"
-    depends_on:
-      warp:
-        condition: service_healthy
+    network_mode: host
     healthcheck:
       test: python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:3000/')" || exit 1
       interval: 20s
