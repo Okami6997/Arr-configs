@@ -14,4 +14,6 @@ cd ~/docker_container || exit
 
 # Restart containers
 docker compose down
+# for updating musicsearch at every restart
+docker rmi ashutoshkj100/musicsearch
 docker compose up -d
