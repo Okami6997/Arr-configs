@@ -75,10 +75,11 @@ services:
     volumes:
       - /mnt/drive/external/warp:/var/lib/cloudflare-warp
     healthcheck:
-      test: warp-cli status | grep Connected || exit 1
-      interval: 20s
+      test: ["CMD-SHELL", "nslookup google.com >/dev/null 2>&1 && curl -fs https://1.1.1.1 >/dev/null || exit 1"]
+      interval: 30s
       timeout: 10s
-      retries: 5
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
     networks:
       - arrs
