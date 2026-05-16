@@ -75,7 +75,7 @@ services:
     volumes:
       - /mnt/drive/external/warp:/var/lib/cloudflare-warp
     healthcheck:
-      test: ["CMD-SHELL", "nslookup google.com >/dev/null 2>&1 && curl -fs https://1.1.1.1 >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "curl -4 -fs --max-time 10 https://1.1.1.1 >/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
