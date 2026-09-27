@@ -92,7 +92,6 @@ services:
     ports:
       - "8989:8989"
       - "7878:7878"
-      - "8686:8686"
       - "8787:8787"
       - "8082:8081"
       - "5055:5055"
@@ -200,32 +199,6 @@ services:
       - /mnt/drive/external/radarr/config:/config
       - /mnt/drive/external/media/movies:/data/movies
       - /mnt/drive/external/radarr/backup:/data/Backup
-      - /mnt/drive/external/qbittorrent/downloads:/downloads
-    labels:
-      deunhealth.restart.on.unhealthy: "true"
-    network_mode: "service:warp"
-    depends_on:
-      warp:
-        condition: service_healthy
-    healthcheck:
-      test: ping -c 1 www.google.com || exit 1
-      interval: 20s
-      timeout: 10s
-      retries: 5
-    restart: unless-stopped
-
-  lidarr:
-    image: lscr.io/linuxserver/lidarr:latest
-    container_name: lidarr
-    platform: linux/arm64
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Asia/Kolkata
-    volumes:
-      - /mnt/drive/external/lidarr/config:/config
-      - /mnt/drive/external/media/music:/data/musicfolder
-      - /mnt/drive/external/lidarr/backup:/data/Backup
       - /mnt/drive/external/qbittorrent/downloads:/downloads
     labels:
       deunhealth.restart.on.unhealthy: "true"
